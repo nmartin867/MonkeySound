@@ -9,5 +9,7 @@
 #import <UIKit/UIKit.h>
 
 @interface MSFirstViewController : UIViewController
+@property (weak, nonatomic) IBOutlet UIButton *recordBtn;
+@property (weak, nonatomic) IBOutlet UIButton *playBtn;
 
 @end
