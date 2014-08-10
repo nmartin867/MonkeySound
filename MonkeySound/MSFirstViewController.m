@@ -12,7 +12,7 @@
 #import <AVFoundation/AVAudioRecorder.h>
 #import <AVFoundation/AVAudioPlayer.h>
 
-@interface MSFirstViewController () <AVAudioRecorderDelegate>
+@interface MSFirstViewController () <AVAudioRecorderDelegate, AVAudioPlayerDelegate>
 
 @property bool recording;
 @property (nonatomic, strong) NSMutableDictionary *recordSetting;
@@ -39,6 +39,11 @@
     // Dispose of any resources that can be recreated.
 }
 
+
+- (NSString *)applicationDocumentsDirectory {
+    return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+}
+
 - (IBAction)toggleRecording:(id)sender {
     _recording = !_recording;
     if(_recording){
@@ -50,10 +55,6 @@
 }
 - (IBAction)playBtn:(id)sender {
     [self playRecording];
-}
-
-- (NSString *)applicationDocumentsDirectory {
-    return [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
 }
 
 - (void)startRecording{
@@ -73,7 +74,7 @@
         return;
     }
     
-    _recordSetting = [[NSMutableDictionary alloc] init];
+    _recordSetting = [NSMutableDictionary new];
     
     [_recordSetting setValue :[NSNumber numberWithInt:kAudioFormatLinearPCM] forKey:AVFormatIDKey];
     [_recordSetting setValue:[NSNumber numberWithFloat:44100.0] forKey:AVSampleRateKey];
@@ -106,7 +107,7 @@
     }
     
     //prepare to record
-    [_recorder setDelegate:self];
+    _recorder.delegate = self;
     [_recorder prepareToRecord];
     _recorder.meteringEnabled = YES;
     
@@ -130,15 +131,14 @@
     NSURL *url = [NSURL fileURLWithPath: _recorderFilePath];
     NSError *err = nil;
     NSData *audioData = [NSData dataWithContentsOfFile:[url path] options: 0 error:&err];
-    if(!audioData)
-        NSLog(@"audio data: %@ %d %@", [err domain], [err code], [[err userInfo] description]);
-    [_editedObject setValue:[NSData dataWithContentsOfURL:url] forKey:@"editedFieldKey"];
+    if(!audioData){
+      NSLog(@"audio data: %@ %d %@", [err domain], [err code], [[err userInfo] description]);
+    }
+    //Store audio data in memory
+    _editedObject = [[NSMutableDictionary alloc]initWithDictionary:@{@"editedFieldKey": audioData}];
     
-    //[recorder deleteRecording];
-    
-    
+    //Delete audio file from disk
     NSFileManager *fm = [NSFileManager defaultManager];
-    
     err = nil;
     [fm removeItemAtPath:[url path] error:&err];
     if(err){
@@ -151,9 +151,29 @@
 -(void)playRecording{
     if(!_player){
         NSError *err;
+        NSLog(@"%@", [_editedObject[@"editedFieldKey"] class]);
         _player = [[AVAudioPlayer alloc]initWithData:_editedObject[@"editedFieldKey"] error:&err];
+        _player.delegate = self;
         [_player play];
     }
 }
 
+#pragma mark - AVRecorder
+
+-(void)audioRecorderDidFinishRecording:(AVAudioRecorder *)recorder successfully:(BOOL)flag{
+    NSLog(@"Recording complete");
+}
+
+-(void)audioRecorderEncodeErrorDidOccur:(AVAudioRecorder *)recorder error:(NSError *)error{
+    NSLog(@"Recorder Error.");
+}
+
+#pragma mark - AVAudioPlayer
+
+-(void)audioPlayerDecodeErrorDidOccur:(AVAudioPlayer *)player error:(NSError *)error{
+    NSLog(@"PLAYER:Decoding Error.");
+}
+-(void)audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag{
+    NSLog(@"Playback complete.");
+}
 @end
