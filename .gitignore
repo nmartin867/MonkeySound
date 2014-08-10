@@ -25,3 +25,7 @@ DerivedData
 *.ipa
 *.xcuserstate
 .DS_Store
+
+#Test data
+uploads
+*/node_modules

@@ -11,8 +11,9 @@
 #import <AVFoundation/AVAudioSettings.h>
 #import <AVFoundation/AVAudioRecorder.h>
 #import <AVFoundation/AVAudioPlayer.h>
+#import "AFNetworking.h"
 
-@interface MSFirstViewController () <AVAudioRecorderDelegate, AVAudioPlayerDelegate>
+@interface MSFirstViewController () <AVAudioRecorderDelegate, AVAudioPlayerDelegate, UIAlertViewDelegate>
 
 @property bool recording;
 @property (nonatomic, strong) NSMutableDictionary *recordSetting;
@@ -158,10 +159,32 @@
     }
 }
 
+-(void)uploadFile{
+    NSMutableURLRequest *request = [[AFHTTPRequestSerializer serializer] multipartFormRequestWithMethod:@"POST" URLString:@"http://localhost:9000" parameters:nil constructingBodyWithBlock:^(id<AFMultipartFormData> formData) {
+        NSString *fileName = [_recorderFilePath lastPathComponent];
+        [formData appendPartWithFileData:_editedObject[@"editedFieldKey"] name:@"file" fileName:fileName mimeType:@"audio/x-caf"];
+    } error:nil];
+    
+    AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
+    NSProgress *progress = nil;
+    
+    NSURLSessionUploadTask *uploadTask = [manager uploadTaskWithStreamedRequest:request progress:&progress completionHandler:^(NSURLResponse *response, id responseObject, NSError *error) {
+        if (error) {
+            NSLog(@"Error: %@", error);
+        } else {
+            NSLog(@"%@ %@", response, responseObject);
+        }
+    }];
+    
+    [uploadTask resume];
+}
+
 #pragma mark - AVRecorder
 
 -(void)audioRecorderDidFinishRecording:(AVAudioRecorder *)recorder successfully:(BOOL)flag{
-    NSLog(@"Recording complete");
+    UIAlertView * alert = [[UIAlertView alloc]initWithTitle:@"Upload" message:@"Do you want to submit this?" delegate:self cancelButtonTitle:@"Nah" otherButtonTitles:@"Hell Yes!", nil];
+    alert.tag = 0;
+    [alert show];
 }
 
 -(void)audioRecorderEncodeErrorDidOccur:(AVAudioRecorder *)recorder error:(NSError *)error{
@@ -175,5 +198,15 @@
 }
 -(void)audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag{
     NSLog(@"Playback complete.");
+}
+
+#pragma mark - UIAlert 
+
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    if(alertView.tag == 0){
+        if(buttonIndex == 1){
+            [self uploadFile];
+        }
+    }
 }
 @end
